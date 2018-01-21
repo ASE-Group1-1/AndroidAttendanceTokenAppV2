@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:showIn="navigation_view">
+
+    <group android:checkableBehavior="single">
+        <item android:title="History">
+            <menu>
+                <item
+                    android:id="@+id/week_1"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 1" />
+                <item
+                    android:id="@+id/week_2"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 2" />
+                <item
+                    android:id="@+id/week_3"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 3" />
+                <item
+                    android:id="@+id/week_4"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 4" />
+                <item
+                    android:id="@+id/week_5"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 5" />
+                <item
+                    android:id="@+id/week_6"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 6" />
+                <item
+                    android:id="@+id/week_7"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 7" />
+                <item
+                    android:id="@+id/week_8"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 8" />
+                <item
+                    android:id="@+id/week_9"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 9" />
+                <item
+                    android:id="@+id/week_10"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 10" />
+                <item
+                    android:id="@+id/week_11"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 11" />
+                <item
+                    android:id="@+id/week_12"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 12" />
+                <item
+                    android:id="@+id/week_13"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 13" />
+                <item
+                    android:id="@+id/week_14"
+                    android:icon="@drawable/ic_calendar"
+                    android:title="Week 14" />
+            </menu>
+        </item>
+
+
+
+    </group>
+    <group android:checkableBehavior="single">
+
+    <item android:title="Account">
+        <menu>
+            <item
+                android:id="@+id/log_out"
+                android:icon="@drawable/ic_log_out"
+                android:title="Log out" />
+            <item
+                android:id="@+id/change_user"
+                android:icon="@drawable/ic_change_user"
+                android:title="Change User" />
+
+        </menu>
+    </item>
+    </group>
+
+</menu>
