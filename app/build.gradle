@@ -5,7 +5,7 @@ android {
         config {
             keyAlias 'attendanceKey'
             keyPassword 'Peter2017'
-            storeFile file('/Users/Alex/Desktop/Uni/Advanced Topics of SE/Projekt/AttendanceApp/app/keystore')
+            storeFile file('keystore')
             storePassword 'ATSE2017'
         }
     }
