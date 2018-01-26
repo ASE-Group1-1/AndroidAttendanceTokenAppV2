@@ -214,11 +214,9 @@ public class MainActivity extends AppCompatActivity
         TextView main_textview = (TextView) findViewById(R.id.main_textview);
 
         //url to get attendance information in style "attended", "attended and presented" or "not attended"
-        String basicURL = "https://attendancetrackingdesktop.appspot.com/rest/attendance/get?";
-
-        String studentID = "studentID=" + id;
-        String weekNumber = "&weekNumber=";
-        String url = basicURL + studentID + weekNumber;
+        String basicURL = "https://attendancetrackingdesktop.appspot.com/rest/attendance/list/users/";
+        String studentID = "clemens@zuck-online.de";
+        String url = basicURL + studentID;
         switch (id) {
             case R.id.week_1:
                 try {
