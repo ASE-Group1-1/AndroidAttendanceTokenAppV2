@@ -13,11 +13,11 @@ import android.support.v7.app.ActionBarDrawerToggle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
-import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -33,6 +33,16 @@ import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
 import org.restlet.resource.ClientResource;
+import org.w3c.dom.Document;
+import org.w3c.dom.NodeList;
+import org.xml.sax.InputSource;
+
+import java.io.IOException;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import java.io.StringReader;
+
 
 import static android.graphics.Color.BLACK;
 import static android.graphics.Color.WHITE;
@@ -41,8 +51,9 @@ public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
     GoogleSignInClient mgsc;
     private static int RC_SIGN_IN = 100;
-
-    private String user_ID;
+    private String accountID;
+    private String accountEmail;
+    private boolean presented = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -82,17 +93,6 @@ public class MainActivity extends AppCompatActivity
         Button generateQRCodeButton = findViewById(R.id.generate_qrcode_button);
         generateQRCodeButton.setOnClickListener(clickHandler);
 
-        //Floating Action Button
-        /*FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                navigationView.setVisibility(View.VISIBLE);
-                //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                //        .setAction("Action", null).show();
-            }
-        });
-        */
     }
 
     @Override
@@ -108,21 +108,29 @@ public class MainActivity extends AppCompatActivity
 
     private void updateUI(@Nullable GoogleSignInAccount account) {
         TextView main_textview = (TextView) findViewById(R.id.main_textview);
-        final NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
-        Button qr_code = (Button) findViewById(R.id.generate_qrcode_button);
-        Button sign_in = (Button) findViewById(R.id.sign_in_button);
+        final NavigationView navigationView = findViewById(R.id.nav_view);
+        Button generateQRCodeButton = findViewById(R.id.generate_qrcode_button);
+        ImageView qrCodeView = findViewById(R.id.qrcode_view);
+        Switch presentedSwitch = findViewById(R.id.presented_switch);
+
 
         if (account != null) {
-            main_textview.setText("Hi " + account.getGivenName() + "!");
-            sign_in.setVisibility(View.GONE);
+            main_textview.setText("Hello " + account.getGivenName());
+            main_textview.setTextSize(20);
+            findViewById(R.id.sign_in_button).setVisibility(View.GONE);
             navigationView.setVisibility(View.VISIBLE);
-            qr_code.setVisibility(View.VISIBLE);
+            generateQRCodeButton.setVisibility(View.VISIBLE);
+            presentedSwitch.setVisibility(View.VISIBLE);
+
 
         } else {
-            main_textview.setText("Please log in!");
-            sign_in.setVisibility(View.VISIBLE);
+            main_textview.setText("Please log in");
+            findViewById(R.id.sign_in_button).setVisibility(View.VISIBLE);
             navigationView.setVisibility(View.GONE);
-            qr_code.setVisibility(View.GONE);
+            generateQRCodeButton.setVisibility(View.GONE);
+            qrCodeView.setVisibility(View.GONE);
+            presentedSwitch.setVisibility(View.GONE);
+
         }
     }
 
@@ -133,9 +141,17 @@ public class MainActivity extends AppCompatActivity
                     signIn();
                     break;
                 case R.id.generate_qrcode_button:
-                    //"https://attendancetrackingdesktop.appspot.com/rest/attendance/token/get?studentId=112762937574526790868&weekNumber=1"
-                    generateQRCode(user_ID , 1);
+                    String url = "https://attendancetrackingdesktop.appspot.com/rest/attendance/week";
+                    try {
+                        String week = new ClientResource(url).get().getText();
+                        generateQRCode(accountEmail, week);
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     break;
+                case R.id.presented_switch:
+                    presented = !presented;
             }
         }
     };
@@ -155,17 +171,6 @@ public class MainActivity extends AppCompatActivity
                     }
                 });
     }
-    /*
-    private  void changeUser() {
-        mgsc.revokeAccess()
-                .addOnCompleteListener(this, new OnCompleteListener<Void>() {
-                    @Override
-                    public void onComplete(@NonNull Task<Void> task) {
-                        updateUI(null);
-
-                    }
-                });
-    }*/
 
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -183,8 +188,9 @@ public class MainActivity extends AppCompatActivity
         try {
             GoogleSignInAccount account = completedTask.getResult(ApiException.class);
             // Signed in successfully, show authenticated UI.
+            accountID = account.getId();
+            accountEmail = account.getEmail();
             updateUI(account);
-            user_ID = account.getId();
 
         } catch (ApiException e) {
             // The ApiException status code indicates the detailed failure reason.
@@ -201,6 +207,7 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
+
         } else {
             super.onBackPressed();
         }
@@ -212,177 +219,178 @@ public class MainActivity extends AppCompatActivity
         // Handle navigation view item clicks here.
         int id = item.getItemId();
         TextView main_textview = (TextView) findViewById(R.id.main_textview);
+        main_textview.setVisibility(View.VISIBLE);
+        View qrcodeView = findViewById(R.id.qrcode_view);
+        qrcodeView.setVisibility(View.GONE);
 
         //url to get attendance information in style "attended", "attended and presented" or "not attended"
         String basicURL = "https://attendancetrackingdesktop.appspot.com/rest/attendance/list/users/";
-        String studentID = "clemens@zuck-online.de";
-        String url = basicURL + studentID;
+        String url = basicURL + accountEmail;
+        Log.d("URL:", url);
+
+        String weeks [] = getContentFromXML(url,"weekId");
+        String presented [] = getContentFromXML(url, "presented");
+
         switch (id) {
             case R.id.week_1:
-                try {
-                    String rawAnswer = new ClientResource(url+"1").get().getText();
-                    main_textview.setText("In week 1 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"0")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 1 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 1 you did attend");
+                    }
+
+                } else {
+                    main_textview.setText("In week 1 you did not attend");
                 }
                 break;
             case R.id.week_2:
-                try {
-                    String rawAnswer = new ClientResource(url+"2").get().getText();
-                    main_textview.setText("In week 2 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"1")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 2 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 2 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 2 you did not attend");
                 }
                 break;
             case R.id.week_3:
-                try {
-                    String rawAnswer = new ClientResource(url+"3").get().getText();
-                    main_textview.setText("In week 3 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"3")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 3 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 3 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 3 you did not attend");
                 }
                 break;
             case R.id.week_4:
-                try {
-                    String rawAnswer = new ClientResource(url+"4").get().getText();
-                    main_textview.setText("In week 4 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"4")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 4 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 4 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 4 you did not attend");
                 }
                 break;
             case R.id.week_5:
-                try {
-                    String rawAnswer = new ClientResource(url+"5").get().getText();
-                    main_textview.setText("In week 5 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"5")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 5 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 5 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 5 you did not attend");
                 }
                 break;
             case R.id.week_6:
-                try {
-                    String rawAnswer = new ClientResource(url+"6").get().getText();
-                    main_textview.setText("In week 6 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"6")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 6 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 6 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 6 you did not attend");
                 }
                 break;
             case R.id.week_7:
-                try {
-                    String rawAnswer = new ClientResource(url+"7").get().getText();
-                    main_textview.setText("In week 7 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"7")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 7 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 7 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 7 you did not attend");
                 }
                 break;
             case R.id.week_8:
-                try {
-                    String rawAnswer = new ClientResource(url+"8").get().getText();
-                    main_textview.setText("In week 8 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"8")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 8 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 8 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 8 you did not attend");
                 }
                 break;
             case R.id.week_9:
-                try {
-                    String rawAnswer = new ClientResource(url+"9").get().getText();
-                    main_textview.setText("In week 9 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"9")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 9 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 9 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 9 you did not attend");
                 }
                 break;
             case R.id.week_10:
-                try {
-                    String rawAnswer = new ClientResource(url+"10").get().getText();
-                    main_textview.setText("In week 10 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"10")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 10 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 10 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 10 you did not attend");
                 }
                 break;
             case R.id.week_11:
-                try {
-                    String rawAnswer = new ClientResource(url+"11").get().getText();
-                    main_textview.setText("In week 11 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"11")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 11 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 11 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 11 you did not attend");
                 }
                 break;
             case R.id.week_12:
-                try {
-                    String rawAnswer = new ClientResource(url+"12").get().getText();
-                    main_textview.setText("In week 12 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"12")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 12 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 12 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 12 you did not attend");
                 }
                 break;
             case R.id.week_13:
-                try {
-                    String rawAnswer = new ClientResource(url+"13").get().getText();
-                    main_textview.setText("In week 13 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"13")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 13 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 13 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 13 you did not attend");
                 }
                 break;
             case R.id.week_14:
-                try {
-                    String rawAnswer = new ClientResource(url+"14").get().getText();
-                    main_textview.setText("In week 14 you " + rawAnswer + "!");
-                }
-                catch(Exception exc) {
-                    main_textview.setText(exc.getMessage());
+                if (contains(weeks,"14")){
+                    if(contains(presented,"true")){
+                        main_textview.setText("In week 14 you did attend and presented a solution");
+                    } else {
+                        main_textview.setText("In week 14 you did attend");
+                    }
+                } else {
+                    main_textview.setText("In week 14 you did not attend");
                 }
                 break;
             case R.id.log_out:
                 signOut();
                 break;
         }
-
-        /*
-        if (id == R.id.week_1) {
-            // Handle the camera action
-        } else if (id == R.id.week_2) {
-
-        } else if (id == R.id.week_3) {
-
-        } else if (id == R.id.week_4) {
-
-        } else if (id == R.id.week_5) {
-
-        } else if (id == R.id.week_6) {
-
-        } else if (id == R.id.week_7) {
-
-        } else if (id == R.id.week_8) {
-
-        } else if (id == R.id.week_9) {
-
-        } else if (id == R.id.week_10) {
-
-        } else if (id == R.id.week_11) {
-
-        } else if (id == R.id.week_12) {
-
-        } else if (id == R.id.week_13) {
-
-        } else if (id == R.id.week_14) {
-
-        } else if (id == R.id.log_out) {
-            signOut();
-        } else if (id == R.id.change_user) {
-            changeUser();
-        }*/
 
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
@@ -413,21 +421,69 @@ public class MainActivity extends AppCompatActivity
         return bitmap;
     }
 
-    private void generateQRCode(String id, Integer week) {
+    private void generateQRCode(String email, String week) {
         ImageView imageView = (ImageView) findViewById(R.id.qrcode_view);
         TextView main_textview = (TextView) findViewById(R.id.main_textview);
-        //https://attendancetrackingdesktop.appspot.com/rest/attendance/token/get?studentId=112762937574526790868&weekNumber=1
         String basicURL = "https://attendancetrackingdesktop.appspot.com/rest/attendance/token/get?";
-        String studentID = "studentID=" + id;
-        String weekNumber = "&weekNumber=" + week.toString();
-        String url = basicURL + studentID + weekNumber;
+        String studentEmail = "studentEmail=" + email;
+        String weekNumber = "&weekNumber=" + week;
+        String presentedString = "&presented=" + presented;
+        String url = basicURL + studentEmail + weekNumber + presentedString;
         try {
-            String rawAnswer = new ClientResource(url).get().getText();
-            Bitmap bitmap = encodeAsBitmap(rawAnswer);
+            String attendanceToken = new ClientResource(url).get().getText();
+            String groupID = new ClientResource("https://attendancetrackingdesktop.appspot.com/rest/group/user/clemens@zuck-online.de").get().getText();
+
+            String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                    "<xs:attendance xmlns:xs=\"http://www.w3.org/2001/XMLSchema\">" +
+                    "<studentId>"+email+"</studentId>" +
+                    "<groupId>"+groupID+"</groupId>" +
+                    "<weekId>"+week+"</weekId>" +
+                    "<presented>"+presented+"</presented>" +
+                    "<attendanceToken>"+attendanceToken+"</attendanceToken>" +
+                    "</xs:attendance>";
+            Bitmap bitmap = encodeAsBitmap(xml);
             imageView.setImageBitmap(bitmap);
+            imageView.setVisibility(View.VISIBLE);
+            main_textview.setVisibility(View.GONE);
         }
         catch(Exception exc) {
             main_textview.setText(exc.getMessage());
         }
+    }
+
+    private String [] getContentFromXML(String url, String content) {
+        String [] contentArray = new String[14];
+
+        try {
+            String xml = new ClientResource(url).get().getText();
+            Log.d("XML Text: ", xml);
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            DocumentBuilder documentBuilder = factory.newDocumentBuilder();
+            InputSource inputStream = new InputSource(new StringReader(xml));
+
+            Document document = documentBuilder.parse(inputStream);
+
+            NodeList weekIds = document.getElementsByTagName(content);
+            for(int i = 0; i< weekIds.getLength(); i++){
+                contentArray[i] = weekIds.item(i).getTextContent();
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return contentArray;
+    }
+
+    private static boolean contains (String [] stringArray, String element) {
+        if(stringArray == null) {
+            return false;
+        } else {
+            for(int i = 0; i < stringArray.length; i++){
+                if (stringArray[i] != null && stringArray[i].equals(element)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
